@@ -1,0 +1,11 @@
+#pragma kernel CSTransfer
+
+RWTexture3D<float4> OutputTexture3D : register(u0);
+Texture3D<float4> InputTexture3D : register(t0);
+
+[numthreads(8, 8, 8)]
+void CSTransfer (uint3 id : SV_DispatchThreadID) {
+    float4 pixelValue = InputTexture3D[id];
+    // Logic to handle the alpha values and neighbors can be added here
+    OutputTexture3D[id] = pixelValue;
+}

@@ -1,0 +1,121 @@
+#pragma kernel CSTick
+
+struct VoxelData
+{
+	int    IsAble;
+	int    Ignited;
+	int    Burning;
+	float  LightningValue;
+	float3 WorldPosition;
+	int3   Index;
+};
+
+RWStructuredBuffer<VoxelData> VoxelBuffer;
+RWStructuredBuffer<float3>    BurningVoxelPositionsBuffer;
+float                         LightningSpeed;
+uint                          VoxelCount;
+int                           XDensity;
+int                           YDensity;
+int                           ZDensity;
+float3                        IgnitionPos;
+
+uint GetLinearIndex(int3 index)
+{
+	return index.x * ZDensity * YDensity + index.y * ZDensity + index.z;
+}
+
+void IgniteNeighbours(VoxelData voxel)
+{
+	// x axis
+	if(voxel.Index.x >= 0 && voxel.Index.x < XDensity - 1)
+	{
+		uint neighbourIndex = GetLinearIndex(voxel.Index + int3(1, 0, 0));
+		if(VoxelBuffer[neighbourIndex].IsAble == 1 && VoxelBuffer[neighbourIndex].Ignited == 0)
+		{
+			VoxelBuffer[neighbourIndex].Ignited = 1;
+		}
+	}
+
+	if(voxel.Index.x > 0 && voxel.Index.x <= XDensity - 1)
+	{
+		uint neighbourIndex = GetLinearIndex(voxel.Index - int3(1, 0, 0));
+		if(VoxelBuffer[neighbourIndex].IsAble == 1 && VoxelBuffer[neighbourIndex].Ignited == 0)
+		{
+			VoxelBuffer[neighbourIndex].Ignited = 1;
+		}
+	}
+
+	// y axis
+	if(voxel.Index.y >= 0 && voxel.Index.y < YDensity - 1)
+	{
+		uint neighbourIndex = GetLinearIndex(voxel.Index + int3(0, 1, 0));
+		if(VoxelBuffer[neighbourIndex].IsAble == 1 && VoxelBuffer[neighbourIndex].Ignited == 0)
+		{
+			VoxelBuffer[neighbourIndex].Ignited = 1;
+		}
+	}
+
+	if(voxel.Index.y > 0 && voxel.Index.y <= YDensity - 1)
+	{
+		uint neighbourIndex = GetLinearIndex(voxel.Index - int3(0, 1, 0));
+		if(VoxelBuffer[neighbourIndex].IsAble == 1 && VoxelBuffer[neighbourIndex].Ignited == 0)
+		{
+			VoxelBuffer[neighbourIndex].Ignited = 1;
+		}
+	}
+
+	// z axis
+	if(voxel.Index.z >= 0 && voxel.Index.z < ZDensity - 1)
+	{
+		uint neighbourIndex = GetLinearIndex(voxel.Index + int3(0, 0, 1));
+		if(VoxelBuffer[neighbourIndex].IsAble == 1 && VoxelBuffer[neighbourIndex].Ignited == 0)
+		{
+			VoxelBuffer[neighbourIndex].Ignited = 1;
+		}
+	}
+
+	if(voxel.Index.z > 0 && voxel.Index.z <= ZDensity - 1)
+	{
+		uint neighbourIndex = GetLinearIndex(voxel.Index - int3(0, 0, 1));
+		if(VoxelBuffer[neighbourIndex].IsAble == 1 && VoxelBuffer[neighbourIndex].Ignited == 0)
+		{
+			VoxelBuffer[neighbourIndex].Ignited = 1;
+		}
+	}
+}
+
+[numthreads(8, 8, 1)]
+void CSTick(uint3 id : SV_DispatchThreadID)
+{
+	if(id.x >= VoxelCount)
+	{
+		return; // Prevent out-of-range issues.
+	}
+	VoxelData voxel = VoxelBuffer[id.x];
+	if(voxel.IsAble != 1) return;
+	if(length(voxel.WorldPosition - IgnitionPos) < 0.1f)
+	{
+		voxel.Ignited = 1;
+	}
+	
+
+	if(voxel.Ignited == 1 && voxel.Burning == 0)
+	{
+		if(voxel.LightningValue >= 1)
+		{
+			voxel.Burning = 1;
+			BurningVoxelPositionsBuffer[id.x] = voxel.WorldPosition;
+		}
+		else
+		{
+			voxel.LightningValue += LightningSpeed;
+		}
+
+		VoxelBuffer[id.x] = voxel;
+	}
+
+	if(voxel.Burning == 1)
+	{
+		IgniteNeighbours(voxel);
+	}
+}
